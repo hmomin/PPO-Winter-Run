@@ -1,0 +1,99 @@
+<div class="text-container">
+    <div *ngIf="!training">
+        <p>
+            Hi! I created this game along with a reinforcement learning (RL)
+            agent that uses
+            <a href="https://arxiv.org/abs/1707.06347" target="_blank"
+                >Proximal Policy Opimization (PPO)</a
+            >
+            with
+            <a href="https://arxiv.org/abs/1506.02438" target="_blank"
+                >Generalized Advantage Estimation (GAE)</a
+            >
+            to beat it (source code on
+            <a href="https://github.com/hmomin/winter-run" target="_blank">
+                Github</a
+            >). If you'd like to see the RL agent in action, click the "autoplay
+            (pretrained)" button on the main menu.
+        </p>
+        <p>
+            If you'd like to train the PPO-GAE agent in your browser from
+            scratch, click the "train" button above the game window.
+        </p>
+        <p>
+            To play the game, use the arrow keys
+            <img
+                src="../assets/tilemap/arrow-keys.png"
+                class="inline-img"
+                alt=""
+            />
+            to get to the
+            <img
+                src="../assets/tilemap/star.png"
+                class="inline-img"
+                alt="star"
+            />
+            at the end.<br />
+            For every
+            <img
+                src="../assets/tilemap/coin.png"
+                class="inline-img"
+                alt="coin"
+            />
+            you collect, you can use the
+            <img
+                src="../assets/tilemap/g-key.png"
+                class="inline-img"
+                alt="[G]"
+            />
+            key to whack an enemy with your mallet.<br />
+            For every
+            <img
+                src="../assets/tilemap/diamond.png"
+                class="inline-img"
+                alt="diamond"
+            />
+            you collect, you can use the
+            <img
+                src="../assets/tilemap/h-key.png"
+                class="inline-img"
+                alt="[H]"
+            />
+            key to shoot a fireball.
+        </p>
+    </div>
+    <div *ngIf="training">
+        <p>
+            Welcome to the training module! A reinforcement learning agent is
+            now training in your browser using
+            <a href="https://arxiv.org/abs/1707.06347" target="_blank"
+                >Proximal Policy Opimization</a
+            >
+            with
+            <a href="https://arxiv.org/abs/1506.02438" target="_blank"
+                >Generalized Advantage Estimation</a
+            >
+            to beat the game. Due to frame-syncing issues, please avoid pressing
+            any gameplay keys.
+        </p>
+        <p>
+            If you'd like a closer look at how the agent is making progress,
+            check out the episodic updates in the console ([CTRL]+[SHIFT]+[J]).
+        </p>
+        <p>
+            If you'd like to see the weights being updated in real time,
+            navigate to the local storage within your browser.
+        </p>
+    </div>
+</div>
+<div class="button-container">
+    <button class="play-button" routerLink="/play" routerLinkActive="active">
+        play
+    </button>
+    <button class="train-button" routerLink="/train" routerLinkActive="active">
+        train
+    </button>
+</div>
+<div id="winter-run-game"></div>
+<div class="bottom-margin"></div>
+<router-outlet></router-outlet>
