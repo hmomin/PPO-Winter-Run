@@ -2,7 +2,7 @@
 import {
     episode,
     weights,
-} from "../../../assets/training-data/agent-episode-56872.json";
+} from "../../../assets/training-data/agent-episode-0.json";
 import { bestWeights } from "../../../assets/training-data/best-agent.json";
 import Agent from "../training/agent";
 
