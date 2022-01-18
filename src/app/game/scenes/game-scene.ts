@@ -41,11 +41,12 @@ export default class GameScene extends Phaser.Scene {
     maxAverage = Number.MIN_VALUE;
     episodeNum = 0;
     steps = 0;
-    runningAverageReward = 0;
     episodeRewards = [];
     episodeValues = [];
-    state = [];
     totalReward = 0;
+    totalRewards = new Array(100).fill(0);
+    episodeIndex = 0;
+    state = [];
     distanceCheckpoint = -1;
 
     dropOffLocations: Array<[number, number]> = [];
@@ -737,7 +738,9 @@ export default class GameScene extends Phaser.Scene {
     trainAgent() {
         // adjust rewards (since they're off by one step) before storing them
         this.episodeRewards.shift();
-        this.episodeRewards.push(0);
+        const finalBonus = this.wonGame ? this.timeRemaining * 100 : 0;
+        this.totalReward += finalBonus;
+        this.episodeRewards.push(finalBonus);
         this.agent.buffer.storeRewards(this.episodeRewards);
         // compute and store advantage estimates
         const [returns, advantages] = this.agent.computeAdvantageEstimates(
@@ -748,15 +751,16 @@ export default class GameScene extends Phaser.Scene {
         // before training, reset episodic data
         this.episodeRewards = [];
         this.episodeValues = [];
-        this.runningAverageReward =
-            this.runningAverageReward * 0.99 + this.totalReward * 0.01;
+        this.totalRewards[this.episodeIndex] = this.totalReward;
+        this.episodeIndex = (this.episodeIndex + 1) % this.totalRewards.length;
+        const runningAverageReward = this.computeMean(this.totalRewards);
         this.maxReward = Math.max(this.maxReward, this.totalReward);
-        this.maxAverage = Math.max(this.maxAverage, this.runningAverageReward);
+        this.maxAverage = Math.max(this.maxAverage, runningAverageReward);
         console.log(
             `episode ${this.episodeNum}\n` +
                 `reward: ${this.totalReward.toFixed(2)}\n` +
                 `max reward: ${this.maxReward.toFixed(2)}\n` +
-                `100 period avg: ${this.runningAverageReward.toFixed(2)}\n` +
+                `100 period avg: ${runningAverageReward.toFixed(2)}\n` +
                 `max avg: ${this.maxAverage.toFixed(2)}`
         );
         this.totalReward = 0;
@@ -777,6 +781,14 @@ export default class GameScene extends Phaser.Scene {
         // save the new episode number
         this.episodeNum++;
         localStorage.setItem("episode", JSON.stringify(this.episodeNum));
+    }
+
+    computeMean(arr: number[]): number {
+        let total = 0;
+        for (const num of arr) {
+            total += num;
+        }
+        return total / arr.length;
     }
 
     restartScene() {
