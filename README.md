@@ -2,7 +2,7 @@
     <img src="https://dr3ngl797z54v.cloudfront.net/winter-run-logo.png" width="100%" alt="ppo-winter-run-logo">
 </p>
 
-Winter Run is a game written in TypeScript and Angular. You can play the game live [here](https://winter-run.com)! A deep reinforcement learning agent written in TensorFlow.js can learn to beat the game by training with [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347) (PPO) and [Generalized Advantage Estimation](https://arxiv.org/abs/1506.02438) (GAE). After training for roughly 50,000 episodes over the span of two weeks, the agent successfully beat the game. After roughly 10,000 more episodes, the agent could consistently beat the game.
+Winter Run is a game written in TypeScript and Angular. You can play the game live [here](https://winter-run.com)! A deep reinforcement learning agent written in TensorFlow.js can learn to beat the game by training with [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347) (PPO) and [Generalized Advantage Estimation](https://arxiv.org/abs/1506.02438) (GAE). After training for roughly 50,000 episodes over the span of two weeks, the agent successfully beat the game.
 
 Because the actor/critic network parameters are stored directly within the browser's local storage, anyone with internet access can pop open a browser and immediately begin training their own PPO agent to beat the game. To my knowledge, something like this has never been created before.
 
