@@ -40,10 +40,7 @@ export default class Helper extends Phaser.Physics.Arcade.Sprite {
             }
         }
         if (this.body) {
-            this.body.setSize(
-                this.displayWidth,
-                (9.5 / 10) * this.displayHeight
-            );
+            this.body.setSize(this.displayWidth, (9 / 10) * this.displayHeight);
             // the helper should die if it falls
             if (this.body.y > 500) {
                 this.die();

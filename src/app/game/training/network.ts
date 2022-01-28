@@ -35,13 +35,13 @@ export default class Network {
             for (let i = 0; i < fullShape.length - 1; i++) {
                 const dim = fullShape[i];
                 const nextDim = fullShape[i + 1];
-                // construct weight layer (2d)
+                // construct weight layer first (2d)
                 const weightShape = [dim, nextDim];
                 const newWeights = layersExist
                     ? tf.tensor(layerWeights[layerCount++], weightShape)
                     : tf.randomNormal(weightShape, 0, Math.sqrt(2 / dim));
                 const weightLayer = tf.keep(tf.variable(newWeights));
-                // construct bias layer (1d)
+                // construct bias layer second (1d)
                 const biasShape = [nextDim];
                 const newBiases = layersExist
                     ? tf.tensor(layerWeights[layerCount++], biasShape)

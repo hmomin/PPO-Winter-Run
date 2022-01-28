@@ -22,23 +22,37 @@
     width: 100%;
     text-align: center;
     display: inline-block;
-    margin-bottom: 5px;
+    margin: 5px 0px;
 }
 
 button {
-    background-color: #226644;
     color: #111111;
     font-weight: bold;
     border-radius: 10px;
     height: 35px;
-    width: 60px;
     margin: 5px;
+}
+
+.mode-button {
+    background-color: #226644;
+    width: 60px;
+}
+
+.download-button {
+    background-color: #00bfb2;
 }
 
 button:hover {
     cursor: pointer;
-    background-color: #44cc88;
     transition: 0.5s;
+}
+
+.mode-button:hover {
+    background-color: #44cc88;
+}
+
+.download-button:hover {
+    background-color: #00978d;
 }
 
 .active {

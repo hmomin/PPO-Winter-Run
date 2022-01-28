@@ -11,7 +11,7 @@
                 >Generalized Advantage Estimation (GAE)</a
             >
             to beat it (source code on
-            <a href="https://github.com/hmomin/winter-run" target="_blank">
+            <a href="https://github.com/hmomin/ppo-winter-run" target="_blank">
                 Github</a
             >). If you'd like to see the RL agent in action, click the "autoplay
             (pretrained)" button on the main menu.
@@ -89,13 +89,22 @@
     </div>
 </div>
 <div class="button-container">
-    <button class="play-button" routerLink="/play" routerLinkActive="active">
+    <button class="mode-button" routerLink="/play" routerLinkActive="active">
         play
     </button>
-    <button class="train-button" routerLink="/train" routerLinkActive="active">
+    <button class="mode-button" routerLink="/train" routerLinkActive="active">
         train
     </button>
 </div>
 <div id="winter-run-game"></div>
+<div class="button-container">
+    <button
+        class="download-button"
+        *ngIf="this.training"
+        (click)="downloadWeights()"
+    >
+        download current weights
+    </button>
+</div>
 <div class="bottom-margin"></div>
 <router-outlet></router-outlet>
