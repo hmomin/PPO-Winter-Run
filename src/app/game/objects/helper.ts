@@ -4,7 +4,9 @@ export default class Helper extends Phaser.Physics.Arcade.Sprite {
     body: Phaser.Physics.Arcade.Body;
     scene: GameScene;
     nameStr: string;
+    lives: integer;
     hitFloor = false;
+    invulnerable = false;
     dead = false;
 
     constructor(
@@ -12,11 +14,13 @@ export default class Helper extends Phaser.Physics.Arcade.Sprite {
         nameStr: string,
         x: number,
         y: number,
+        lives: integer,
         group: Phaser.Physics.Arcade.Group
     ) {
         super(scene, x, y, nameStr);
         this.scene = scene;
         this.nameStr = nameStr;
+        this.lives = lives;
         this.scene.add.existing(this);
         this.scene.physics.world.enableBody(this);
         group.add(this);
@@ -26,6 +30,22 @@ export default class Helper extends Phaser.Physics.Arcade.Sprite {
     enableCollisions() {
         // collision with ground
         this.scene.physics.add.collider(this, this.scene.graphics);
+        // collisions with enemies
+        for (const g of [
+            this.scene.snowmen,
+            this.scene.yetis,
+            this.scene.crows,
+        ]) {
+            this.scene.physics.add.collider(
+                this,
+                g,
+                () => {
+                    this.hit();
+                },
+                null,
+                this.scene
+            );
+        }
     }
 
     update() {
@@ -45,6 +65,19 @@ export default class Helper extends Phaser.Physics.Arcade.Sprite {
             if (this.body.y > 500) {
                 this.die();
             }
+        }
+    }
+
+    hit() {
+        if (!this.invulnerable) {
+            this.invulnerable = true;
+            this.lives--;
+            if (this.lives === 0) {
+                this.die();
+            }
+            setTimeout(() => {
+                this.invulnerable = false;
+            }, 1000);
         }
     }
 

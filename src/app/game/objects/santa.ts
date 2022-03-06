@@ -8,6 +8,6 @@ export default class Santa extends Helper {
         y: number,
         group: Phaser.Physics.Arcade.Group
     ) {
-        super(scene, "santa", x, y, group);
+        super(scene, "santa", x, y, 10, group);
     }
 }

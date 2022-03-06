@@ -8,6 +8,6 @@ export default class IceMage extends Helper {
         y: number,
         group: Phaser.Physics.Arcade.Group
     ) {
-        super(scene, "ice-mage", x, y, group);
+        super(scene, "ice-mage", x, y, 10, group);
     }
 }
