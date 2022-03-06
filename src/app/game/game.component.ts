@@ -13,6 +13,9 @@ export class GameComponent implements OnInit, OnDestroy {
     config: Phaser.Types.Core.GameConfig;
     constructor() {
         this.config = {
+            dom: {
+                createContainer: true,
+            },
             type: Phaser.CANVAS,
             width: 800,
             height: 480,

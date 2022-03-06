@@ -19,6 +19,7 @@ import {
     crowPositions,
 } from "../../../assets/tilemap/level1_enemies.json";
 import Snowball from "../objects/snowball";
+import GameText from "./game-text";
 
 export default class GameScene extends Phaser.Scene {
     stateDim = 42; // dimensionality of state on each step (feature vector)
@@ -54,7 +55,7 @@ export default class GameScene extends Phaser.Scene {
 
     backgroundBack: Phaser.GameObjects.TileSprite;
     backgroundFront: Phaser.GameObjects.TileSprite;
-    graphics: Phaser.Tilemaps.DynamicTilemapLayer;
+    graphics: Phaser.Tilemaps.TilemapLayer;
     map: Phaser.Tilemaps.Tilemap;
     tileset: Phaser.Tilemaps.Tileset;
 
@@ -74,14 +75,14 @@ export default class GameScene extends Phaser.Scene {
     cam: Phaser.Cameras.Scene2D.Camera;
     cursors: Phaser.Types.Input.Keyboard.CursorKeys;
 
-    fireballsText: Phaser.GameObjects.Text;
-    gameOverText: Phaser.GameObjects.Text;
-    wonGameText: Phaser.GameObjects.Text;
-    livesText: Phaser.GameObjects.Text;
-    malletText: Phaser.GameObjects.Text;
-    timerText: Phaser.GameObjects.Text;
-    episodeText: Phaser.GameObjects.Text;
-    texts: Array<Phaser.GameObjects.Text>;
+    fireballsText: GameText;
+    gameOverText: GameText;
+    wonGameText: GameText;
+    livesText: GameText;
+    malletText: GameText;
+    timerText: GameText;
+    episodeText: GameText;
+    texts: Array<GameText>;
 
     fireballKey: Phaser.Input.Keyboard.Key;
     malletKey: Phaser.Input.Keyboard.Key;
@@ -104,7 +105,6 @@ export default class GameScene extends Phaser.Scene {
     yetis: Phaser.Physics.Arcade.Group;
     snowmen: Phaser.Physics.Arcade.Group;
     snowmenObjs: Snowman[] = [];
-    snowballs: Snowball[] = [];
 
     snowmanPositions: number[];
     yetiPositions: number[];
@@ -243,12 +243,7 @@ export default class GameScene extends Phaser.Scene {
             0,
             0
         );
-        this.graphics = this.map.createDynamicLayer(
-            "graphics",
-            this.tileset,
-            0,
-            0
-        );
+        this.graphics = this.map.createLayer("graphics", this.tileset, 0, 0);
         this.graphics.setCollisionByExclusion([-1], true);
     }
 
@@ -299,70 +294,50 @@ export default class GameScene extends Phaser.Scene {
     }
 
     instantiateTexts() {
-        this.timerText = this.add.text(
+        this.timerText = new GameText(
+            this,
             10,
             10,
-            "Time Remaining: " + this.timeRemaining,
-            {
-                fontFamily: "Arial",
-                fontSize: 20,
-                color: "black",
-            }
+            `Time Remaining: ${this.timeRemaining}s`
         );
-        this.livesText = this.add.text(
+        this.livesText = new GameText(
+            this,
             10,
             35,
-            "Lives Remaining: " + this.player.numLives,
-            {
-                fontFamily: "Arial",
-                fontSize: 20,
-                color: "black",
-            }
+            "Lives Remaining: " + this.player.numLives
         );
-        this.malletText = this.add.text(
+        this.malletText = new GameText(
+            this,
             10,
             60,
-            "Mallet Hits [G]: " + this.player.numMallets,
-            {
-                fontFamily: "Arial",
-                fontSize: 20,
-                color: "black",
-            }
+            "Mallet Hits [G]: " + this.player.numMallets
         );
-        this.fireballsText = this.add.text(
+        this.fireballsText = new GameText(
+            this,
             10,
             85,
-            "Fireballs [H]: " + this.player.numFireballs,
-            {
-                fontFamily: "Arial",
-                fontSize: 20,
-                color: "black",
-            }
+            "Fireballs [H]: " + this.player.numFireballs
         );
-        this.gameOverText = this.add.text(
+        this.gameOverText = new GameText(
+            this,
             this.cam.width / 2,
-            (3 * this.cam.height) / 10,
+            this.cam.height / 2,
             "GAME OVER",
-            {
-                fontFamily: "Arial",
-                fontSize: 60,
-                color: "#990000",
-            }
+            "#990000",
+            60
         );
-        this.gameOverText.setOrigin(0.5, 0.5);
-        this.gameOverText.visible = false;
-        this.wonGameText = this.add.text(
+        this.gameOverText.makeInvisible();
+        this.gameOverText.centerAll();
+        this.wonGameText = new GameText(
+            this,
             this.cam.width / 2,
-            (3 * this.cam.height) / 10,
+            this.cam.height / 2,
             "YOU WIN!",
-            {
-                fontFamily: "Arial",
-                fontSize: 60,
-                color: "#009900",
-            }
+            "#009900",
+            60
         );
-        this.wonGameText.setOrigin(0.5, 0.5);
-        this.wonGameText.visible = false;
+        this.wonGameText.makeInvisible();
+        this.wonGameText.centerAll();
         this.texts = [
             this.livesText,
             this.malletText,
@@ -372,22 +347,14 @@ export default class GameScene extends Phaser.Scene {
             this.wonGameText,
         ];
         if (this.train) {
-            this.episodeText = this.add.text(
+            this.episodeText = new GameText(
+                this,
                 this.cam.width / 2,
                 10,
-                `Episode ${this.episodeNum}`,
-                {
-                    fontFamily: "Arial",
-                    fontSize: 20,
-                    color: "black",
-                }
+                `Episode ${this.episodeNum}`
             );
-            this.episodeText.setOrigin(0.5, 0);
+            this.episodeText.centerHorizontally();
             this.texts.push(this.episodeText);
-        }
-        // fix texts in place
-        for (const t of this.texts) {
-            t.setScrollFactor(0, 0);
         }
     }
 
@@ -797,20 +764,28 @@ export default class GameScene extends Phaser.Scene {
         this.wonGame = false;
         this.gameOver = false;
         this.gameEnded = true;
+        this.hideTexts();
         this.agent.dispose();
         // save the buffer to attach to the new agent
         this.registry.set("buffer", this.agent.buffer);
         this.scene.restart();
     }
 
+    hideTexts() {
+        for (const t of this.texts) {
+            t.makeInvisible();
+        }
+    }
+
     handleLevelOver() {
         this.physics.pause();
         if (this.wonGame) {
-            this.wonGameText.visible = true;
+            this.wonGameText.makeVisible();
         } else {
-            this.gameOverText.visible = true;
+            this.gameOverText.makeVisible();
         }
         setTimeout(() => {
+            this.hideTexts();
             this.cam.fadeOut(1000);
             setTimeout(() => {
                 this.timeRemaining = this.beginTime;
@@ -829,8 +804,6 @@ export default class GameScene extends Phaser.Scene {
     }
 
     getGameState(): number[] {
-        // we need to know where the snowballs are before computing the state
-        this.snowballs = this.getSnowballs();
         // define the state mostly from distances to various features of the scene
         return [
             this.getNextDropOff(),
@@ -856,7 +829,7 @@ export default class GameScene extends Phaser.Scene {
             ...this.getNearestInverseDistance(this.crows.children.entries),
             ...this.getNearestInverseDistance(this.yetis.children.entries),
             ...this.getNearestInverseDistance(this.snowmen.children.entries),
-            ...this.getNearestInverseDistance(this.snowballs),
+            ...this.getNearestInverseDistance(this.getSnowballs()),
             this.player.numLives,
             this.player.numMallets,
             this.player.numFireballs,
@@ -995,7 +968,7 @@ export default class GameScene extends Phaser.Scene {
         }
         // set warning color if time goes below 20 seconds
         if (this.timeRemaining === 20) {
-            this.timerText.setFill("#aa0000");
+            this.timerText.setColor("#990000");
         }
     }
 

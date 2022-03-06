@@ -7,6 +7,12 @@
     max-width: 885px;
 }
 
+#winter-run-game {
+    width: 800px;
+    height: 480px;
+    margin: auto;
+}
+
 .inline-img {
     height: 1.5rem;
     position: relative;
