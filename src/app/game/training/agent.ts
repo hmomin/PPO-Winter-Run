@@ -183,6 +183,16 @@ export default class Agent {
     }
 
     train() {
+        this.playUpdateSound();
+        console.log(
+            "=============================\n" +
+                "=============================\n" +
+                "=============================\n" +
+                "===== UPDATING NETWORKS =====\n" +
+                "=============================\n" +
+                "=============================\n" +
+                "=============================\n"
+        );
         tf.tidy(() => {
             for (let i = 0; i < this.numEpochs; i++) {
                 // create shuffled copies of the data
@@ -225,6 +235,13 @@ export default class Agent {
             }
             this.buffer.reset();
         });
+    }
+
+    playUpdateSound() {
+        const audio = new Audio();
+        audio.src = "../assets/update-sound.mp3";
+        audio.load();
+        audio.play();
     }
 
     dispose() {
