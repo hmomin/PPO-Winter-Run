@@ -89,7 +89,7 @@ export default class Agent {
     computeAdvantageEstimates(rewards: number[], values: number[]): number[][] {
         const returns = this.computeReturns(rewards);
         // compute the advantage estimates using GAE
-        let advantages = Array(rewards.length).fill(0);
+        const advantages = Array(rewards.length).fill(0);
         for (let i = 0; i < rewards.length; i++) {
             let discountFactor = 1;
             let advantageEstimate = 0;
@@ -102,14 +102,6 @@ export default class Agent {
             }
             advantages[i] = advantageEstimate;
         }
-        // now, do advantage normalization (take the advantage estimate sample
-        // distribution and map it to ~N(0, 1))
-        const [mean, std] = this.getMeanAndStd(advantages);
-        // disallow divide-by-zero and large numerical fluctuations
-        const adjustedStd = Math.max(std, 1e-8);
-        advantages = advantages.map(
-            (advantage) => (advantage - mean) / adjustedStd
-        );
         return [returns, advantages];
     }
 
@@ -123,22 +115,6 @@ export default class Agent {
             valueNext = returns[i];
         }
         return returns;
-    }
-
-    // return the mean and standard deviation of an array (useful for advantage
-    // normalization)
-    getMeanAndStd(arr: number[]): number[] {
-        // first, calculate the mean
-        const mean =
-            arr.reduce((runningSum, elem) => runningSum + elem, 0) / arr.length;
-        // now, use the mean to calculate the standard deviation
-        const standardDeviation =
-            arr.reduce(
-                (runningSum, elem) => runningSum + Math.pow(elem - mean, 2),
-                0
-            ) /
-            (arr.length - 1);
-        return [mean, standardDeviation];
     }
 
     computeActorLoss(
