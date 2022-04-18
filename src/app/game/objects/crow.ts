@@ -1,11 +1,8 @@
+import Enemy from "./enemy";
 import GameScene from "../scenes/game-scene";
 
-export default class Crow extends Phaser.Physics.Arcade.Sprite {
-    body: Phaser.Physics.Arcade.Body;
-    scene: GameScene;
-    dead = false;
+export default class Crow extends Enemy {
     moving = false;
-    colliders: Array<Phaser.Physics.Arcade.Collider> = [];
 
     constructor(
         scene: GameScene,
@@ -13,56 +10,9 @@ export default class Crow extends Phaser.Physics.Arcade.Sprite {
         y: number,
         group: Phaser.Physics.Arcade.Group
     ) {
-        super(scene, x, y, "crow");
-        this.scene = scene;
-        this.scene.add.existing(this);
-        this.scene.physics.world.enableBody(this);
-        group.add(this);
+        super(scene, x, y, group, "crow");
         this.setScale(0.9);
         this.play("crow-confident", true);
-        this.setFlipX(true);
-        this.enableCollisions();
-    }
-
-    enableCollisions() {
-        // collision with ground
-        this.colliders.push(
-            this.scene.physics.add.collider(this, this.scene.graphics)
-        );
-        // collision with player
-        this.colliders.push(
-            this.scene.physics.add.collider(
-                this,
-                this.scene.player,
-                () => {
-                    if (this.scene.player.offensive) {
-                        this.die();
-                    } else {
-                        this.scene.player.loseLife();
-                    }
-                },
-                null,
-                this.scene
-            )
-        );
-        // collision with fireballs, meteors, ice mages, santas
-        for (const g of [
-            this.scene.fireballs,
-            this.scene.meteors,
-            this.scene.helpers,
-        ]) {
-            this.colliders.push(
-                this.scene.physics.add.collider(
-                    this,
-                    g,
-                    () => {
-                        this.die();
-                    },
-                    null,
-                    this.scene
-                )
-            );
-        }
     }
 
     update() {
