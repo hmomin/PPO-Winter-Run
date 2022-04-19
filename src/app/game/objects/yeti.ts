@@ -1,12 +1,9 @@
+import Enemy from "./enemy";
 import GameScene from "../scenes/game-scene";
 
-export default class Yeti extends Phaser.Physics.Arcade.Sprite {
-    body: Phaser.Physics.Arcade.Body;
-    flip = true;
-    scene: GameScene;
+export default class Yeti extends Enemy {
     attacking = false;
-    dead = false;
-    colliders: Array<Phaser.Physics.Arcade.Collider> = [];
+    resetAttackFrame = -1;
 
     constructor(
         scene: GameScene,
@@ -14,53 +11,8 @@ export default class Yeti extends Phaser.Physics.Arcade.Sprite {
         y: number,
         group: Phaser.Physics.Arcade.Group
     ) {
-        super(scene, x, y, "yeti");
-        this.scene = scene;
-        this.scene.add.existing(this);
-        this.scene.physics.world.enableBody(this);
-        group.add(this);
+        super(scene, x, y, group, "yeti");
         this.play("yeti-idle", true);
-        this.setFlipX(this.flip);
-        this.enableCollisions();
-    }
-
-    enableCollisions() {
-        // collision with ground
-        this.scene.physics.add.collider(this, this.scene.graphics);
-        // collision with player
-        this.colliders.push(
-            this.scene.physics.add.collider(
-                this,
-                this.scene.player,
-                () => {
-                    if (this.scene.player.offensive) {
-                        this.die();
-                    } else {
-                        this.scene.player.loseLife();
-                    }
-                },
-                null,
-                this.scene
-            )
-        );
-        // collision with fireballs, meteors, ice mages, santas
-        for (const g of [
-            this.scene.fireballs,
-            this.scene.meteors,
-            this.scene.helpers,
-        ]) {
-            this.colliders.push(
-                this.scene.physics.add.collider(
-                    this,
-                    g,
-                    () => {
-                        this.die();
-                    },
-                    null,
-                    this.scene
-                )
-            );
-        }
     }
 
     update() {
@@ -74,32 +26,14 @@ export default class Yeti extends Phaser.Physics.Arcade.Sprite {
                 if (!this.attacking && withinStrikingDistance) {
                     this.attacking = true;
                     this.play("yeti-smash", true);
-                    setTimeout(() => {
-                        this.attacking = false;
-                    }, 2000);
+                    this.resetAttackFrame = this.scene.game.getFrame() + 2 * 60;
                 } else if (this.attacking && !withinStrikingDistance) {
                     this.play("yeti-idle", true);
                 }
+                if (this.scene.game.getFrame() === this.resetAttackFrame) {
+                    this.attacking = false;
+                }
             }
-        }
-    }
-
-    resize() {
-        // first, resize the yeti
-        this.body.setSize(this.displayWidth - 10, this.displayHeight - 10);
-        // then, reset position of yeti to be touching the ground
-        this.y = Math.floor(
-            this.scene.cam.height -
-                this.scene.tileset.tileHeight -
-                (this.displayHeight - 10) / 2
-        );
-    }
-
-    toggleFlip() {
-        // flip based on whether or not the girl is in front or behind
-        this.flip = this.x >= this.scene.player.x;
-        if (this.flip !== this.flipX) {
-            this.toggleFlipX();
         }
     }
 
