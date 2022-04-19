@@ -1,15 +1,14 @@
+import Enemy from "./enemy";
 import GameScene from "../scenes/game-scene";
 import Snowball from "./snowball";
 
-export default class Snowman extends Phaser.Physics.Arcade.Sprite {
-    body: Phaser.Physics.Arcade.Body;
-    flip = true;
-    scene: GameScene;
+export default class Snowman extends Enemy {
     attacking = false;
-    dead = false;
-    colliders: Array<Phaser.Physics.Arcade.Collider> = [];
     snowball: Snowball;
     snowballGroup: Phaser.Physics.Arcade.Group;
+    shootSnowballFrame = -1;
+    idleFrame = -1;
+    resetAttackFrame = -1;
 
     constructor(
         scene: GameScene,
@@ -17,58 +16,13 @@ export default class Snowman extends Phaser.Physics.Arcade.Sprite {
         y: number,
         group: Phaser.Physics.Arcade.Group
     ) {
-        super(scene, x, y, "snowman");
-        this.scene = scene;
-        this.scene.add.existing(this);
-        this.scene.physics.world.enableBody(this);
-        group.add(this);
+        super(scene, x, y, group, "snowman");
         // initialize snowball group for snowman
         this.snowballGroup = this.scene.physics.add.group({
             allowGravity: false,
             immovable: true,
         });
         this.play("snowman-idle", true);
-        this.setFlipX(this.flip);
-        this.enableCollisions();
-    }
-
-    enableCollisions() {
-        // collision with ground
-        this.scene.physics.add.collider(this, this.scene.graphics);
-        // collision with player
-        this.colliders.push(
-            this.scene.physics.add.collider(
-                this,
-                this.scene.player,
-                () => {
-                    if (this.scene.player.offensive) {
-                        this.die();
-                    } else {
-                        this.scene.player.loseLife();
-                    }
-                },
-                null,
-                this.scene
-            )
-        );
-        // collision with fireballs, meteors, ice mages, santas
-        for (const g of [
-            this.scene.fireballs,
-            this.scene.meteors,
-            this.scene.helpers,
-        ]) {
-            this.colliders.push(
-                this.scene.physics.add.collider(
-                    this,
-                    g,
-                    () => {
-                        this.die();
-                    },
-                    null,
-                    this.scene
-                )
-            );
-        }
     }
 
     update() {
@@ -87,37 +41,9 @@ export default class Snowman extends Phaser.Physics.Arcade.Sprite {
                 if (this.snowball) {
                     this.snowball.update();
                 }
-            }
-        }
-    }
-
-    resize() {
-        // first, resize the snowman
-        this.body.setSize(this.displayWidth - 10, this.displayHeight - 10);
-        // then, reset position of the snowman to be touching the ground
-        this.y = Math.floor(
-            this.scene.cam.height -
-                this.scene.tileset.tileHeight -
-                (this.displayHeight - 10) / 2
-        );
-    }
-
-    toggleFlip() {
-        // flip based on whether or not the girl is in front or behind
-        this.flip = this.x >= this.scene.player.x;
-        if (this.flip !== this.flipX) {
-            this.toggleFlipX();
-        }
-    }
-
-    shootSnowball() {
-        this.play("snowman-attack", true);
-        setTimeout(() => {
-            // need try-catch blocks, because sometimes the scene will restart while the
-            // Snowman object is still active
-            try {
-                // first, create a snowball
-                if (!this.dead) {
+                // do any attacking/snowball updates
+                const frame = this.scene.game.getFrame();
+                if (frame === this.shootSnowballFrame) {
                     this.snowball = new Snowball(
                         this.scene,
                         this.x,
@@ -125,25 +51,21 @@ export default class Snowman extends Phaser.Physics.Arcade.Sprite {
                         this.flip,
                         this.snowballGroup
                     );
+                } else if (frame === this.idleFrame) {
+                    this.play("snowman-idle", true);
+                } else if (frame === this.resetAttackFrame) {
+                    this.attacking = false;
                 }
-            } catch (err) {}
-            // after 1 second, bring the snowman back to normal
-            setTimeout(() => {
-                try {
-                    if (!this.dead) {
-                        this.play("snowman-idle", true);
-                    }
-                } catch (err) {}
-            }, 1000);
-            // after 5 seconds, get ready to attack again
-            setTimeout(() => {
-                try {
-                    if (!this.dead) {
-                        this.attacking = false;
-                    }
-                } catch (err) {}
-            }, 5000);
-        }, 1600);
+            }
+        }
+    }
+
+    shootSnowball() {
+        this.play("snowman-attack", true);
+        const frame = this.scene.game.getFrame();
+        this.shootSnowballFrame = frame + 1.6 * 60;
+        this.idleFrame = frame + 2.6 * 60;
+        this.resetAttackFrame = frame + 6.6 * 60;
     }
 
     die() {
