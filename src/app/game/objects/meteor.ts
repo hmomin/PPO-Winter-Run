@@ -13,8 +13,8 @@ export default class Meteor extends Phaser.Physics.Arcade.Sprite {
         this.scene = scene;
         this.scene.add.existing(this);
         this.scene.physics.world.enableBody(this);
-        // have to rotate the meteor, so that it points downwards while falling from the
-        // sky
+        // have to rotate the meteor, so that it points downwards while falling from
+        // the sky
         this.rotation = Math.PI / 2;
         group.add(this);
         this.play("meteor", true);
