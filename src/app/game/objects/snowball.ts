@@ -31,11 +31,10 @@ export default class Snowball extends Phaser.Physics.Arcade.Sprite {
             this.play("snowball-reverse", true);
             this.maxX = this.ogX - this.scene.cam.width;
         }
-        this.enableCollision();
+        this.enablePlayerCollision();
     }
 
-    enableCollision() {
-        // collision with player
+    enablePlayerCollision() {
         this.scene.physics.add.overlap(
             this,
             this.scene.player,
