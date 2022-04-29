@@ -17,7 +17,6 @@ export default class LoadScene extends Phaser.Scene {
         this.loadTiles();
         this.loadWinterGirl();
         this.loadExplosions();
-        this.loadFriends();
         this.loadEnemies();
 
         this.load.on("complete", () => {
@@ -84,12 +83,10 @@ export default class LoadScene extends Phaser.Scene {
     }
 
     loadTiles() {
-        // load tilesheet
         this.load.image("tilesheet", this.assetUrl + "tilemap/tilesheet.png");
-        // load tilemap
         this.load.tilemapTiledJSON(
-            "map1",
-            this.assetUrl + "tilemap/level1.json"
+            "game-map",
+            "../../../assets/tilemap/game-level.json"
         );
         this.loadTilemapImages();
     }
@@ -115,14 +112,6 @@ export default class LoadScene extends Phaser.Scene {
             this.assetUrl + "tilemap/images/exclam-sign.png"
         );
         this.load.image("fence", this.assetUrl + "tilemap/images/fence.png");
-        this.load.image(
-            "gold-chest",
-            this.assetUrl + "tilemap/images/gold-chest.png"
-        );
-        this.load.image(
-            "gold-key",
-            this.assetUrl + "tilemap/images/gold-key.png"
-        );
         this.load.image("heart", this.assetUrl + "tilemap/images/heart.png");
         this.load.image(
             "question-sign",
@@ -171,7 +160,6 @@ export default class LoadScene extends Phaser.Scene {
             this.assetUrl + "sprites/winter-girl-spritesheet.png",
             this.assetUrl + "sprites/winter-girl-atlas.json"
         );
-        // load attack winter girl
         this.load.atlas(
             "player-attack",
             this.assetUrl + "sprites/winter-girl-attack-spritesheet.png",
@@ -187,36 +175,17 @@ export default class LoadScene extends Phaser.Scene {
         );
     }
 
-    loadFriends() {
-        // load santa
-        this.load.atlas(
-            "santa",
-            this.assetUrl + "sprites/santa-spritesheet.png",
-            this.assetUrl + "sprites/santa-atlas.json"
-        );
-        // load ice-mage
-        this.load.atlas(
-            "ice-mage",
-            this.assetUrl + "sprites/ice-mage-spritesheet.png",
-            this.assetUrl + "sprites/ice-mage-atlas.json"
-        );
-    }
-
     loadEnemies() {
-        // load yeti
         this.load.atlas(
             "yeti",
             this.assetUrl + "sprites/yeti-spritesheet.png",
             this.assetUrl + "sprites/yeti-atlas.json"
         );
-        // load snowman
         this.load.atlas(
             "snowman",
             this.assetUrl + "sprites/snowman-spritesheet.png",
             this.assetUrl + "sprites/snowman-atlas.json"
         );
-
-        // load crow
         this.load.atlas(
             "crow",
             this.assetUrl + "sprites/crow-spritesheet.png",
@@ -227,8 +196,6 @@ export default class LoadScene extends Phaser.Scene {
     loadAnimations() {
         this.loadGirlAnimations();
         this.loadFireAnimations();
-        this.loadSantaAnimations();
-        this.loadIceMageAnimations();
         this.loadSnowmanAnimations();
         this.loadYetiAnimations();
         this.loadCrowAnimations();
@@ -328,7 +295,6 @@ export default class LoadScene extends Phaser.Scene {
     }
 
     loadFireAnimations() {
-        // fireball animations
         this.anims.create({
             key: "fireball",
             frames: this.anims.generateFrameNames("explosion", {
@@ -339,78 +305,12 @@ export default class LoadScene extends Phaser.Scene {
             frameRate: 10,
             repeat: -1,
         });
-        // meteor animations
         this.anims.create({
             key: "meteor",
             frames: this.anims.generateFrameNames("explosion", {
                 prefix: "big_ball_",
                 start: 1,
                 end: 2,
-            }),
-            frameRate: 5,
-            repeat: -1,
-        });
-    }
-
-    loadSantaAnimations() {
-        this.anims.create({
-            key: "santa-idle",
-            frames: this.anims.generateFrameNames("santa", {
-                prefix: "idle_",
-                start: 1,
-                end: 5,
-            }),
-            frameRate: 5,
-            repeat: -1,
-        });
-        this.anims.create({
-            key: "santa-walk",
-            frames: this.anims.generateFrameNames("santa", {
-                prefix: "walk_",
-                start: 1,
-                end: 9,
-            }),
-            frameRate: 10,
-            repeat: -1,
-        });
-        this.anims.create({
-            key: "santa-death",
-            frames: this.anims.generateFrameNames("santa", {
-                prefix: "death_",
-                start: 1,
-                end: 8,
-            }),
-            frameRate: 10,
-        });
-    }
-
-    loadIceMageAnimations() {
-        this.anims.create({
-            key: "ice-mage-idle",
-            frames: this.anims.generateFrameNames("ice-mage", {
-                prefix: "idle_",
-                start: 1,
-                end: 6,
-            }),
-            frameRate: 5,
-            repeat: -1,
-        });
-        this.anims.create({
-            key: "ice-mage-death",
-            frames: this.anims.generateFrameNames("ice-mage", {
-                prefix: "death_",
-                start: 1,
-                end: 5,
-            }),
-            frameRate: 5,
-            repeat: -1,
-        });
-        this.anims.create({
-            key: "ice-mage-walk",
-            frames: this.anims.generateFrameNames("ice-mage", {
-                prefix: "walk_",
-                start: 1,
-                end: 6,
             }),
             frameRate: 5,
             repeat: -1,
@@ -557,7 +457,6 @@ export default class LoadScene extends Phaser.Scene {
     }
 
     toggleTraining() {
-        // train or don't train?
         if (this.routerUrl === "/train") {
             localStorage.setItem("train", JSON.stringify(true));
             // move straight to game
