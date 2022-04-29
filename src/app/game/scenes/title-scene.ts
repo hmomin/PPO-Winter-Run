@@ -15,7 +15,20 @@ export default class TitleScene extends Phaser.Scene {
     }
 
     create() {
-        // get settings
+        this.setGameSettings();
+        this.setMusicSettings();
+
+        this.addBackgrounds();
+        this.addLogo();
+        this.addPlayButton();
+        this.addAutoplayButton();
+        this.addMusicOnButton();
+        this.addMusicOffButton();
+
+        this.cameras.main.fadeIn(1000);
+    }
+
+    setGameSettings() {
         this.gameSettings = JSON.parse(
             localStorage.getItem("winterRunSettings")
         );
@@ -26,7 +39,9 @@ export default class TitleScene extends Phaser.Scene {
             );
             this.gameSettings = this.defaultSettings;
         }
+    }
 
+    setMusicSettings() {
         // set default music-playing parameters...
         if (!this.playing) {
             this.sound.play("music", {
@@ -39,15 +54,6 @@ export default class TitleScene extends Phaser.Scene {
         if (!this.gameSettings[0].value) {
             this.sound.pauseAll();
         }
-
-        this.addBackgrounds();
-        this.addLogo();
-        this.addPlayButton();
-        this.addAutoplayButton();
-        this.addMusicOnButton();
-        this.addMusicOffButton();
-
-        this.cameras.main.fadeIn(1000);
     }
 
     addBackgrounds() {
@@ -124,19 +130,23 @@ export default class TitleScene extends Phaser.Scene {
         this.musicOnButton.setScale(0.8);
         this.musicOnButton.setInteractive({ useHandCursor: true });
         this.musicOnButton.on("pointerdown", () => {
-            // pause music
-            this.playing = false;
-            this.sound.pauseAll();
-            // swap buttons
-            this.musicOnButton.setVisible(false);
-            this.musicOffButton.setVisible(true);
-            // set local storage value for music playing
-            this.gameSettings[0].value = false;
-            localStorage.setItem(
-                "winterRunSettings",
-                JSON.stringify(this.gameSettings)
-            );
+            this.turnMusicOff();
         });
+    }
+
+    turnMusicOff() {
+        // pause music
+        this.playing = false;
+        this.sound.pauseAll();
+        // swap buttons
+        this.musicOnButton.setVisible(false);
+        this.musicOffButton.setVisible(true);
+        // set local storage value for music playing
+        this.gameSettings[0].value = false;
+        localStorage.setItem(
+            "winterRunSettings",
+            JSON.stringify(this.gameSettings)
+        );
     }
 
     addMusicOffButton() {
@@ -151,19 +161,23 @@ export default class TitleScene extends Phaser.Scene {
         this.musicOffButton.setScale(0.875);
         this.musicOffButton.setInteractive({ useHandCursor: true });
         this.musicOffButton.on("pointerdown", () => {
-            // restart music
-            this.playing = true;
-            this.sound.resumeAll();
-            // swap buttons
-            this.musicOffButton.setVisible(false);
-            this.musicOnButton.setVisible(true);
-            // set local storage
-            this.gameSettings[0].value = true;
-            localStorage.setItem(
-                "winterRunSettings",
-                JSON.stringify(this.gameSettings)
-            );
+            this.turnMusicOn();
         });
+    }
+
+    turnMusicOn() {
+        // restart music
+        this.playing = true;
+        this.sound.resumeAll();
+        // swap buttons
+        this.musicOffButton.setVisible(false);
+        this.musicOnButton.setVisible(true);
+        // set local storage
+        this.gameSettings[0].value = true;
+        localStorage.setItem(
+            "winterRunSettings",
+            JSON.stringify(this.gameSettings)
+        );
     }
 
     update() {
