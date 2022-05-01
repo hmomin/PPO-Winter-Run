@@ -38,12 +38,10 @@ export class GameComponent implements OnInit, OnDestroy {
         this.game.scene.add("load", LoadScene);
         this.game.scene.add("title", TitleScene);
         this.game.scene.add("game", GameScene);
-        // start loading game
         this.game.scene.start("load");
     }
 
     ngOnDestroy() {
-        // destroy game
         this.game.destroy(true, false);
     }
 }
