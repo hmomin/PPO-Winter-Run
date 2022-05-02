@@ -1,24 +1,21 @@
 <div class="text-container">
     <div *ngIf="!training">
         <p>
-            Hi! I created this game along with a reinforcement learning (RL)
-            agent that uses
-            <a href="https://arxiv.org/abs/1707.06347" target="_blank"
-                >Proximal Policy Opimization (PPO)</a
-            >
-            with
-            <a href="https://arxiv.org/abs/1506.02438" target="_blank"
-                >Generalized Advantage Estimation (GAE)</a
-            >
-            to beat it (source code on
+            Hello! I created this game along with a
+            <a href="https://arxiv.org/abs/1707.06347" target="_blank">PPO</a>
+            reinforcement learning agent that can train on it directly in your
+            browser. The source code can be found
             <a href="https://github.com/hmomin/ppo-winter-run" target="_blank">
-                Github</a
-            >). If you'd like to see the RL agent in action, click the "autoplay
-            (pretrained)" button on the main menu.
+                here</a
+            >.
         </p>
         <p>
-            If you'd like to train the PPO-GAE agent in your browser from
-            scratch, click the "train" button above the game window.
+            If you'd like to see a pretrained PPO agent in action, click the
+            "autoplay (pretrained)" button on the main menu.
+        </p>
+        <p>
+            If you'd like to train an agent in your browser from scratch, click
+            the "train" button above the game window.
         </p>
         <p>
             To play the game, use the arrow keys
@@ -69,12 +66,7 @@
             <a href="https://arxiv.org/abs/1707.06347" target="_blank"
                 >Proximal Policy Opimization</a
             >
-            with
-            <a href="https://arxiv.org/abs/1506.02438" target="_blank"
-                >Generalized Advantage Estimation</a
-            >
-            to beat the game. Due to frame-syncing issues, please avoid pressing
-            any gameplay keys.
+            to beat the game.
         </p>
         <p>
             If you'd like a closer look at how the agent is making progress,
