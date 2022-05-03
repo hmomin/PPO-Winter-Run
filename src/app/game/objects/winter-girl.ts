@@ -9,16 +9,18 @@ export default class WinterGirl extends Phaser.Physics.Arcade.Sprite {
     numMallets: integer = 0;
     numFireballs: integer = 0;
     numSilverKeys: integer = 0;
-    numGoldKeys: integer = 0;
     // player is walking by default until they get an apple
     running = false;
     // true if player is on the offensive (she's got a mallet swinging)
     offensive = false;
+    resetOffensiveFrame = -1;
     malletFinished = true;
     // true if player just shot a fireball
     justShotFireball = false;
+    resetFireballFrame = -1;
     // player is invulnerable right after getting hit
     invulnerable = false;
+    resetInvulnerableFrame = -1;
 
     constructor(scene: GameScene, x: number, y: number) {
         super(scene, x, y, "player");
@@ -34,6 +36,16 @@ export default class WinterGirl extends Phaser.Physics.Arcade.Sprite {
         this.updateFireballStatus();
         this.updateArrowKeyStatus();
         this.orientAndResize();
+        const frame = this.scene.game.getFrame();
+        if (frame === this.resetOffensiveFrame) {
+            this.offensive = false;
+        }
+        if (frame === this.resetFireballFrame) {
+            this.justShotFireball = false;
+        }
+        if (frame === this.resetInvulnerableFrame) {
+            this.invulnerable = false;
+        }
     }
 
     updateMalletStatus() {
@@ -45,9 +57,7 @@ export default class WinterGirl extends Phaser.Physics.Arcade.Sprite {
             this.offensive = true;
             this.malletFinished = false;
             this.numMallets--;
-            setTimeout(() => {
-                this.offensive = false;
-            }, 1000);
+            this.resetOffensiveFrame = this.scene.game.getFrame() + 1 * 60;
             this.play("girl-mallet", true);
         } else if (this.offensive) {
             this.play("girl-mallet", true);
@@ -66,10 +76,8 @@ export default class WinterGirl extends Phaser.Physics.Arcade.Sprite {
             this.justShotFireball = true;
             this.numFireballs--;
             // shoot the fireball
-            new Fireball(this.scene, this.scene.fireballs);
-            setTimeout(() => {
-                this.justShotFireball = false;
-            }, 1000);
+            new Fireball(this.scene, this.x, this.y, this.scene.fireballs);
+            this.resetFireballFrame = this.scene.game.getFrame() + 1 * 60;
             this.play("girl-throw", true);
         } else if (this.justShotFireball) {
             this.play("girl-throw", true);
@@ -130,9 +138,7 @@ export default class WinterGirl extends Phaser.Physics.Arcade.Sprite {
             this.numLives--;
             this.running = false;
             this.blink();
-            setTimeout(() => {
-                this.invulnerable = false;
-            }, 2000);
+            this.resetInvulnerableFrame = this.scene.game.getFrame() + 2 * 60;
         } else if (!this.invulnerable) {
             if (this.debug) {
                 console.log("Game Over disabled (debug mode)");
