@@ -7,8 +7,6 @@ import { bestWeights } from "../../../assets/training-data/best-agent.json";
 import Agent from "../training/agent";
 
 import WinterGirl from "../objects/winter-girl";
-import Santa from "../objects/santa";
-import IceMage from "../objects/ice-mage";
 import Meteor from "../objects/meteor";
 import Snowman from "../objects/snowman";
 import Yeti from "../objects/yeti";
@@ -17,12 +15,13 @@ import {
     snowmanPositions,
     yetiPositions,
     crowPositions,
-} from "../../../assets/tilemap/level1_enemies.json";
+} from "../../../assets/tilemap/level-enemies.json";
 import Snowball from "../objects/snowball";
 import GameText from "./game-text";
+import Fireball from "../objects/fireball";
 
 export default class GameScene extends Phaser.Scene {
-    stateDim = 42; // dimensionality of state on each step (feature vector)
+    stateDim = 81; // dimensionality of state on each step (feature vector)
     actionDim = 6; // amount of discrete actions we can choose from on each step
     batchSize = 8192; // how many steps per batch (minimum)
     numMiniBatches = 32; // how many minibatches to make out of each batch
@@ -49,6 +48,9 @@ export default class GameScene extends Phaser.Scene {
     episodeIndex = 0;
     state = [];
     distanceCheckpoint = -1;
+    numSolves = 0;
+    numTrainingEpisodes = 0;
+    startingFrame: number;
 
     dropOffLocations: Array<[number, number]> = [];
     nextLedgeLocations: Array<[number, number]> = [];
@@ -63,14 +65,12 @@ export default class GameScene extends Phaser.Scene {
     bonusBlocks: Phaser.Physics.Arcade.Group;
     coins: Phaser.Physics.Arcade.Group;
     diamonds: Phaser.Physics.Arcade.Group;
-    goldChests: Phaser.Physics.Arcade.Group;
-    goldKeys: Phaser.Physics.Arcade.Group;
     ground: Phaser.Physics.Arcade.Group;
     hearts: Phaser.Physics.Arcade.Group;
-    silverChests: Phaser.Physics.Arcade.Group;
-    silverKeys: Phaser.Physics.Arcade.Group;
     spikes: Phaser.Physics.Arcade.Group;
     star: Phaser.Physics.Arcade.Group;
+    silverChests: Phaser.Physics.Arcade.Group;
+    silverKeys: Phaser.Physics.Arcade.Group;
 
     cam: Phaser.Cameras.Scene2D.Camera;
     cursors: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -100,7 +100,6 @@ export default class GameScene extends Phaser.Scene {
     player: WinterGirl;
     fireballs: Phaser.Physics.Arcade.Group;
     meteors: Phaser.Physics.Arcade.Group;
-    helpers: Phaser.Physics.Arcade.Group;
     crows: Phaser.Physics.Arcade.Group;
     yetis: Phaser.Physics.Arcade.Group;
     snowmen: Phaser.Physics.Arcade.Group;
@@ -108,7 +107,6 @@ export default class GameScene extends Phaser.Scene {
 
     snowmanPositions: number[];
     yetiPositions: number[];
-    // move crows as soon as they enter the camera view
     crowPositions: number[][];
     girlYSpeed = 320;
 
@@ -117,58 +115,23 @@ export default class GameScene extends Phaser.Scene {
     }
 
     create() {
-        // deal with training stuff
-        this.autoplay = JSON.parse(localStorage.getItem("autoplay"));
-        this.train = JSON.parse(localStorage.getItem("train"));
-        const episodeNum = localStorage.getItem("episode");
-        // the episode can be imported from a hardcoded JSON file containing weights
-        this.episodeNum = episodeNum ? JSON.parse(episodeNum) : episode;
+        this.setTrainingParameters();
         // retrieve weight and bias data if training
         if (this.train) {
-            // set all weights to localStorage if they don't exist
-            if (!localStorage.getItem("weights")) {
-                // starting weights are imported from a JSON file
-                localStorage.setItem("weights", JSON.stringify(weights));
-            }
-            localStorage.setItem("episode", JSON.stringify(this.episodeNum));
             // ensure first weights synchronized between localStorage and context
+            this.synchronizeTrainingData();
             if (this.episodeNum > 0) {
                 const weightsStr: string = localStorage.getItem("weights");
                 const currentWeights: number[][][] = JSON.parse(weightsStr);
-                this.agent = new Agent(
-                    currentWeights,
-                    this.stateDim,
-                    this.actionDim,
-                    this.numEpochs,
-                    this.numMiniBatches,
-                    this.learningRate
-                );
+                this.createAgent(currentWeights);
             } else {
-                this.agent = new Agent(
-                    weights,
-                    this.stateDim,
-                    this.actionDim,
-                    this.numEpochs,
-                    this.numMiniBatches,
-                    this.learningRate
-                );
+                this.createAgent(weights);
             }
         } else if (this.autoplay) {
             // pretrained actor and critic weights loaded from hardcoded JSON file
-            this.agent = new Agent(
-                bestWeights,
-                this.stateDim,
-                this.actionDim,
-                this.numEpochs,
-                this.numMiniBatches,
-                this.learningRate
-            );
+            this.createAgent(bestWeights);
         }
-        // restore the previous buffer
-        const oldBuffer = this.registry.get("buffer");
-        if (this.agent && oldBuffer) {
-            this.agent.buffer = oldBuffer;
-        }
+        this.restorePreviousBuffer();
 
         this.setEnemyPositions();
         this.cam = this.cameras.cameras[0];
@@ -179,16 +142,8 @@ export default class GameScene extends Phaser.Scene {
         // grab background signs and objects
         this.ground = this.instantiateObjectLayer("ground");
 
-        // add player
-        this.player = new WinterGirl(this, 50, 350);
-        this.distanceCheckpoint = this.player.x;
-        // when debugging the player, she makes high jumps
-        if (this.player.debug) {
-            this.girlYSpeed = 625;
-        }
-        this.physics.add.collider(this.player, this.graphics);
-
-        // instantiate relevant objects for the level
+        // instantiate relevant parts of the level
+        this.instantiatePlayer();
         this.instantiateTexts();
         this.instantiateHearts();
         this.instantiateApples();
@@ -196,7 +151,6 @@ export default class GameScene extends Phaser.Scene {
         this.instantiateDiamonds();
         this.createPhysicsGroups();
         this.instantiateSilver();
-        this.instantiateGold();
         this.instantiateStar();
         this.instantiateSpikes();
         this.instantiateBonusBlocks();
@@ -204,10 +158,53 @@ export default class GameScene extends Phaser.Scene {
 
         this.setUpCursors();
 
-        this.cam.startFollow(this.player, false, 0.1, 0, -100, 110);
+        this.cam.startFollow(
+            this.player,
+            false,
+            0.1,
+            0,
+            this.player.x - 150,
+            this.player.y - 240
+        );
 
         this.setWorldBounds();
         this.setMeteorCollisions();
+    }
+
+    setTrainingParameters() {
+        this.autoplay = JSON.parse(localStorage.getItem("autoplay"));
+        this.train = JSON.parse(localStorage.getItem("train"));
+        const episodeNum = localStorage.getItem("episode");
+        // the episode can be imported from a hardcoded JSON file containing weights
+        this.episodeNum = episodeNum ? JSON.parse(episodeNum) : episode;
+        this.startingFrame = this.game.getFrame();
+    }
+
+    synchronizeTrainingData() {
+        // set all weights to localStorage if they don't exist
+        if (!localStorage.getItem("weights")) {
+            // starting weights are imported from a JSON file
+            localStorage.setItem("weights", JSON.stringify(weights));
+        }
+        localStorage.setItem("episode", JSON.stringify(this.episodeNum));
+    }
+
+    createAgent(someWeights: number[][][]) {
+        this.agent = new Agent(
+            someWeights,
+            this.stateDim,
+            this.actionDim,
+            this.numEpochs,
+            this.numMiniBatches,
+            this.learningRate
+        );
+    }
+
+    restorePreviousBuffer() {
+        const oldBuffer = this.registry.get("buffer");
+        if (this.agent && oldBuffer) {
+            this.agent.buffer = oldBuffer;
+        }
     }
 
     setEnemyPositions() {
@@ -234,7 +231,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     createMap() {
-        this.map = this.make.tilemap({ key: "map1" });
+        this.map = this.make.tilemap({ key: "game-map" });
         this.tileset = this.map.addTilesetImage(
             "winter-tileset",
             "tilesheet",
@@ -276,6 +273,16 @@ export default class GameScene extends Phaser.Scene {
                 dropOffBegins = -1;
             }
         }
+    }
+
+    instantiatePlayer() {
+        this.player = new WinterGirl(this, 50, 420);
+        this.distanceCheckpoint = this.player.x;
+        // when debugging the player, she makes high jumps
+        if (this.player.debug) {
+            this.girlYSpeed = 625;
+        }
+        this.physics.add.collider(this.player, this.graphics);
     }
 
     instantiateObjectLayer(
@@ -433,9 +440,6 @@ export default class GameScene extends Phaser.Scene {
         this.meteors = this.physics.add.group({
             allowGravity: false,
         });
-        this.helpers = this.physics.add.group({
-            immovable: true,
-        });
         this.snowmen = this.physics.add.group({
             allowGravity: false,
             immovable: true,
@@ -474,53 +478,16 @@ export default class GameScene extends Phaser.Scene {
             (_, chest) => {
                 if (this.player.numSilverKeys > 0) {
                     this.player.numSilverKeys--;
+                    const x = chest.body.x;
+                    const y = chest.body.y;
                     chest.destroy();
-                    // tslint:disable-next-line: no-unused-expression
-                    new Santa(
-                        this,
-                        this.player.x,
-                        this.player.y - 50,
-                        this.helpers
-                    );
-                }
-            },
-            null,
-            this
-        );
-    }
-
-    instantiateGold() {
-        // gold keys for gold chests
-        this.goldKeys = this.instantiateObjectLayer("gold_key");
-        // player grabs gold key
-        this.physics.add.overlap(
-            this.player,
-            this.goldKeys,
-            (_, key) => {
-                key.destroy();
-                this.player.numGoldKeys++;
-            },
-            null,
-            this
-        );
-
-        // gold chests
-        this.goldChests = this.instantiateObjectLayer("gold_chest");
-        // player tries to open gold chest
-        this.physics.add.overlap(
-            this.player,
-            this.goldChests,
-            (_, chest) => {
-                if (this.player.numGoldKeys > 0) {
-                    this.player.numGoldKeys--;
-                    chest.destroy();
-                    // tslint:disable-next-line: no-unused-expression
-                    new IceMage(
-                        this,
-                        this.player.x,
-                        this.player.y - 50,
-                        this.helpers
-                    );
+                    const fireballOffsets = [];
+                    for (let i = 1; i <= 3; i++) {
+                        fireballOffsets.push(32 * i);
+                    }
+                    for (const offset of fireballOffsets) {
+                        new Fireball(this, x + offset, y, this.fireballs);
+                    }
                 }
             },
             null,
@@ -566,39 +533,42 @@ export default class GameScene extends Phaser.Scene {
         this.bonusBlocks = this.instantiateObjectLayer("bonus blocks", 16, -15);
         for (const block of this.bonusBlocks.children.entries) {
             this.physics.add.collider(this.player, block, (_, obj) => {
-                const x = Math.floor(obj["x"] / 32);
-                const y = Math.floor(obj["y"] / 32);
-                obj.destroy();
-                // copy the next tile over into where the bonus block used to be
-                this.map.copy(x + 1, y, 1, 1, x, y);
-                // figure out left-right camera bounds
-                const left =
-                    Math.round(this.cam.midPoint.x) - this.cam.width / 2;
-                const right = left + this.cam.width;
-                // shoot meteors from the sky.
-                // we want some element of randomness, but without any overlapping.
-                const positions: Array<number> = [];
-                for (let i = 1; i <= 9; i++) {
-                    let min = 0;
-                    let xPosition = 0;
-                    while (min < 32) {
-                        xPosition = Phaser.Math.Between(left, right);
-                        min = Math.min(
-                            ...positions.map((value) => {
-                                return Math.abs(value - xPosition);
-                            })
-                        );
-                    }
-                    positions.push(xPosition);
-                    new Meteor(
-                        this,
-                        xPosition,
-                        Phaser.Math.Between(-96, -16),
-                        this.meteors
-                    );
-                }
+                this.replaceBonusBlock(obj);
+                this.shootMeteors();
             });
         }
+    }
+
+    replaceBonusBlock(block: Phaser.Types.Physics.Arcade.GameObjectWithBody) {
+        const x = Math.floor(block["x"] / 32);
+        const y = Math.floor(block["y"] / 32);
+        block.destroy();
+        // copy the next tile over into where the bonus block used to be
+        this.map.copy(x + 1, y, 1, 1, x, y);
+    }
+
+    shootMeteors() {
+        const enemyPositions = [
+            ...this.snowmanPositions,
+            ...this.yetiPositions,
+        ];
+        const [left, right] = this.getCameraBounds();
+        for (const enemyPosition of enemyPositions) {
+            if (left - 500 <= enemyPosition && enemyPosition <= right + 500) {
+                new Meteor(
+                    this,
+                    enemyPosition,
+                    Phaser.Math.Between(-96, -16),
+                    this.meteors
+                );
+            }
+        }
+    }
+
+    getCameraBounds(): number[] {
+        const left = Math.round(this.cam.midPoint.x) - this.cam.width / 2;
+        const right = left + this.cam.width;
+        return [left, right];
     }
 
     instantiateEnemies() {
@@ -656,29 +626,17 @@ export default class GameScene extends Phaser.Scene {
     }
 
     update() {
-        // check if game over
-        if (this.gameOver && !this.gameEnded) {
-            this.gameOver = false;
-            this.gameEnded = true;
-            // deal with training
-            if (this.train) {
-                this.trainAgent();
-                this.restartScene();
-            } else {
-                this.handleLevelOver();
-            }
+        if (this.gameIsOver()) {
+            return;
         }
 
         this.updateBackgroundImages();
 
         if (this.train || this.autoplay) {
-            // if using a training agent, ask it what to do every 4 frames
-            if (
-                (!this.mostRecentKey || this.game.getFrame() % 4 === 0) &&
-                this.distanceCheckpoint !== -1
-            ) {
+            const currentFrame = this.game.getFrame() - this.startingFrame;
+            // if using a training agent, ask it what to do every k=4 frames
+            if (currentFrame % 4 === 0) {
                 this.state = this.getGameState();
-                // get the agent to choose an action given the input state
                 const probabilities = this.agent.actor.arrayForward(this.state);
                 const action = this.train
                     ? this.agent.sampleAction(probabilities)
@@ -702,20 +660,47 @@ export default class GameScene extends Phaser.Scene {
         this.updateTexts();
     }
 
+    gameIsOver(): boolean {
+        if (this.gameOver && !this.gameEnded) {
+            this.gameOver = false;
+            this.gameEnded = true;
+            // deal with training
+            if (this.train) {
+                this.trainAgent();
+                this.restartScene();
+            } else {
+                this.handleLevelOver();
+            }
+            return true;
+        }
+        return false;
+    }
+
     trainAgent() {
-        // adjust rewards (since they're off by one step) before storing them
-        this.episodeRewards.shift();
-        const finalBonus = this.wonGame ? this.timeRemaining * 100 : 0;
-        this.totalReward += finalBonus;
-        this.episodeRewards.push(finalBonus);
+        this.numTrainingEpisodes += 1;
+        if (this.wonGame) {
+            this.numSolves += 1;
+        }
+        this.adjustRewardsByOneStep();
         this.agent.buffer.storeRewards(this.episodeRewards);
-        // compute and store advantage estimates
         const [returns, advantages] = this.agent.computeAdvantageEstimates(
             this.episodeRewards,
             this.episodeValues
         );
         this.agent.buffer.storeReturnData(returns, advantages);
-        // before training, reset episodic data
+        this.handleEpisodicData();
+        if (this.steps >= this.batchSize) {
+            this.agent.train();
+            this.saveNewWeights();
+        }
+    }
+
+    adjustRewardsByOneStep() {
+        this.episodeRewards.shift();
+        this.episodeRewards.push(0);
+    }
+
+    handleEpisodicData() {
         this.episodeRewards = [];
         this.episodeValues = [];
         this.totalRewards[this.episodeIndex] = this.totalReward;
@@ -724,7 +709,7 @@ export default class GameScene extends Phaser.Scene {
         this.maxReward = Math.max(this.maxReward, this.totalReward);
         this.maxAverage = Math.max(this.maxAverage, runningAverageReward);
         console.log(
-            `episode ${this.episodeNum}\n` +
+            `\nepisode ${this.episodeNum}\n` +
                 `reward: ${this.totalReward.toFixed(2)}\n` +
                 `max reward: ${this.maxReward.toFixed(2)}\n` +
                 `100 period avg: ${runningAverageReward.toFixed(2)}\n` +
@@ -732,22 +717,18 @@ export default class GameScene extends Phaser.Scene {
         );
         this.totalReward = 0;
         this.distanceCheckpoint = -1;
-        // learn if we've made the right number of steps - otherwise, create more
-        // training data
-        if (this.steps >= this.batchSize) {
-            this.agent.train();
-            this.steps = 0;
-            // save the new weights to local storage
-            this.agent.actor.saveWeights();
-            this.agent.critic.saveWeights();
-            const fullWeights = [];
-            fullWeights.push(this.agent.actor.weightData);
-            fullWeights.push(this.agent.critic.weightData);
-            localStorage.setItem("weights", JSON.stringify(fullWeights));
-        }
-        // save the new episode number
         this.episodeNum++;
         localStorage.setItem("episode", JSON.stringify(this.episodeNum));
+    }
+
+    saveNewWeights() {
+        this.agent.actor.saveWeights();
+        this.agent.critic.saveWeights();
+        const fullWeights = [];
+        fullWeights.push(this.agent.actor.weightData);
+        fullWeights.push(this.agent.critic.weightData);
+        localStorage.setItem("weights", JSON.stringify(fullWeights));
+        this.steps = this.numTrainingEpisodes = this.numSolves = 0;
     }
 
     computeMean(arr: number[]): number {
@@ -814,8 +795,6 @@ export default class GameScene extends Phaser.Scene {
             ),
             ...this.getNearestInverseDistance(this.coins.children.entries),
             ...this.getNearestInverseDistance(this.diamonds.children.entries),
-            ...this.getNearestInverseDistance(this.goldChests.children.entries),
-            ...this.getNearestInverseDistance(this.goldKeys.children.entries),
             ...this.getNearestInverseDistance(this.hearts.children.entries),
             ...this.getNearestInverseDistance(
                 this.silverChests.children.entries
@@ -823,16 +802,17 @@ export default class GameScene extends Phaser.Scene {
             ...this.getNearestInverseDistance(this.silverKeys.children.entries),
             ...this.getNearestInverseDistance(this.spikes.children.entries),
             ...this.getNearestInverseDistance(this.star.children.entries),
-            ...this.getNearestInverseDistance(this.fireballs.children.entries),
+            ...this.getNearestInverseDistance(this.star.children.entries),
+            ...this.getNearestInverseDistance(
+                this.fireballs.children.entries,
+                true
+            ),
             ...this.getNearestInverseDistance(this.meteors.children.entries),
-            ...this.getNearestInverseDistance(this.helpers.children.entries),
             ...this.getNearestInverseDistance(this.crows.children.entries),
             ...this.getNearestInverseDistance(this.yetis.children.entries),
             ...this.getNearestInverseDistance(this.snowmen.children.entries),
-            ...this.getNearestInverseDistance(this.getSnowballs()),
-            this.player.numLives,
-            this.player.numMallets,
-            this.player.numFireballs,
+            ...this.getNearestInverseDistance(this.getSnowballs(), true),
+            ...this.getPlayerParameters(),
         ];
     }
 
@@ -848,74 +828,126 @@ export default class GameScene extends Phaser.Scene {
 
     getNextDropOff(): number {
         for (const dropOff of this.dropOffLocations) {
-            if (dropOff[0] - this.player.x < 0) {
+            if (this.player.x - dropOff[1] > 0) {
                 continue;
-            } else {
-                const dist = dropOff[0] - this.player.x;
-                return this.getInverse(dist);
             }
+            const dist =
+                this.player.x - dropOff[0] > 0 ? 0 : dropOff[0] - this.player.x;
+            return this.getInverse(dist);
         }
         return 0;
     }
 
-    getNextLedge(): [number, number] {
+    getNextLedge(): number[] {
         let nextDist = Math.sqrt(
             (this.cam.width / 2) ** 2 + (this.cam.height / 2) ** 2
         );
-        let inverseXDist = 0;
-        let inverseYDist = 0;
+        let negativeXDist = Number.MAX_VALUE;
+        let negativeYDist = Number.MAX_VALUE;
+        let positiveXDist = Number.MAX_VALUE;
+        let positiveYDist = Number.MAX_VALUE;
         for (const obj of this.nextLedgeLocations) {
             const x = obj[0];
             const y = obj[1];
-            if (
-                Math.sqrt((x - this.player.x) ** 2 + (y - this.player.y) ** 2) <
-                    nextDist &&
-                x - this.player.x > 0
-            ) {
-                inverseXDist = this.getInverse(x - this.player.x);
-                inverseYDist = this.getInverse(y - this.player.y);
-                nextDist = Math.sqrt(
-                    (x - this.player.x) ** 2 + (y - this.player.y) ** 2
-                );
+            const xDist = x - this.player.x;
+            const yDist = y - this.player.y;
+            const objectDist = Math.sqrt(xDist ** 2 + yDist ** 2);
+            if (objectDist < nextDist && x - this.player.x > 0) {
+                negativeXDist = this.getSignedDist(xDist, false);
+                negativeYDist = this.getSignedDist(yDist, false);
+                positiveXDist = this.getSignedDist(xDist, true);
+                positiveYDist = this.getSignedDist(yDist, true);
+                nextDist = Math.sqrt(xDist ** 2 + yDist ** 2);
             }
         }
-        return [inverseXDist, inverseYDist];
+        return this.getInverseArray([
+            negativeXDist,
+            negativeYDist,
+            positiveXDist,
+            positiveYDist,
+        ]);
     }
 
     getNearestInverseDistance(
-        objArray: Phaser.GameObjects.GameObject[]
+        objArray: Phaser.GameObjects.GameObject[],
+        includeVelocity: boolean = false
     ): number[] {
         let nearestDist = Math.sqrt(
             (this.cam.width / 2) ** 2 + (this.cam.height / 2) ** 2
         );
-        let inverseXDist = 0;
-        let inverseYDist = 0;
+        let negativeXDist = Number.MAX_VALUE;
+        let negativeYDist = Number.MAX_VALUE;
+        let positiveXDist = Number.MAX_VALUE;
+        let positiveYDist = Number.MAX_VALUE;
+        let nearestObj = null;
         for (const obj of objArray) {
-            const x = obj.body ? obj.body["x"] : 1e6;
-            const y = obj.body ? obj.body["y"] : 1e6;
-            const objectDist = Math.sqrt(
-                (x - this.player.x) ** 2 + (y - this.player.y) ** 2
-            );
-            if (objectDist < nearestDist && !obj["dead"]) {
-                const xDist = x - this.player.x;
-                const yDist = y - this.player.y;
-
-                inverseXDist = this.getInverse(xDist);
-                inverseYDist = this.getInverse(yDist);
-                nearestDist = Math.sqrt(
-                    (x - this.player.x) ** 2 + (y - this.player.y) ** 2
-                );
+            const x = obj.body && !obj["dead"] ? obj.body["x"] : 1e6;
+            const y = obj.body && !obj["dead"] ? obj.body["y"] : 1e6;
+            const xDist = x - this.player.x;
+            const yDist = y - this.player.y;
+            const objectDist = Math.sqrt(xDist ** 2 + yDist ** 2);
+            if (objectDist < nearestDist) {
+                negativeXDist = this.getSignedDist(xDist, false);
+                negativeYDist = this.getSignedDist(yDist, false);
+                positiveXDist = this.getSignedDist(xDist, true);
+                positiveYDist = this.getSignedDist(yDist, true);
+                nearestObj = obj;
+                nearestDist = Math.sqrt(xDist ** 2 + yDist ** 2);
             }
         }
-        return [inverseXDist, inverseYDist];
+        const distArray = this.getInverseArray([
+            negativeXDist,
+            negativeYDist,
+            positiveXDist,
+            positiveYDist,
+        ]);
+        if (includeVelocity) {
+            let velocity = 0;
+            if (nearestObj) {
+                velocity = nearestObj["movingRight"] ? +1 : -1;
+            }
+            distArray.push(velocity);
+        }
+        return distArray;
+    }
+
+    getSignedDist(dist: number, positive: boolean) {
+        const signChecksOut = positive ? dist >= 0 : dist <= 0;
+        return signChecksOut ? dist : Number.MAX_VALUE;
     }
 
     getInverse(num: number): number {
         if (Math.abs(num) < 1) {
             return 1;
+        } else if (Math.abs(num) < 1e-300) {
+            return 0;
         } else {
-            return Math.abs(1 / num);
+            const inverseDist = Math.abs(1 / num);
+            return inverseDist < 1e-300 ? 0 : inverseDist;
         }
+    }
+
+    getInverseArray(nums: number[]): number[] {
+        const newNums = [];
+        for (const num of nums) {
+            newNums.push(this.getInverse(num));
+        }
+        return newNums;
+    }
+
+    getPlayerParameters(): number[] {
+        return [
+            this.player.body.velocity.x / this.girlYSpeed,
+            this.player.body.velocity.y / this.girlYSpeed,
+            this.player.numLives,
+            this.player.numMallets > 0 ? 1 : 0,
+            this.player.numFireballs > 0 ? 1 : 0,
+            this.player.numSilverKeys > 0 ? 1 : 0,
+            this.player.running ? 1 : 0,
+            this.player.offensive ? 1 : 0,
+            this.player.invulnerable ? 1 : 0,
+            this.player.body.blocked.none ? 1 : 0,
+        ];
     }
 
     pushKeyDown(keyToPush: Phaser.Input.Keyboard.Key) {
@@ -930,25 +962,22 @@ export default class GameScene extends Phaser.Scene {
         probabilities: Float32Array | Int32Array | Uint8Array,
         action: number
     ) {
-        // store the reward from taking the previous action
-        this.getAndStorePreviousReward();
-        // create a one-hot vector for the action chosen
-        const actionOneHot = new Array(this.actionDim).fill(0);
-        actionOneHot[action] = 1;
-        // record the value of the current state
-        const value = this.agent.critic.arrayForward(this.state)[0];
-        this.episodeValues.push(value);
-        // compute the probability of the action we're about to take
-        const prob = probabilities[action];
-        // store info related to this step in time
-        this.agent.buffer.store([...this.state], value, actionOneHot, prob);
+        this.storePreviousReward();
+        const oneHotActionVector = new Array(this.actionDim).fill(0);
+        oneHotActionVector[action] = 1;
+        const currentStateValue = this.agent.critic.arrayForward(this.state)[0];
+        this.episodeValues.push(currentStateValue);
+        const currentActionProbability = probabilities[action];
+        this.agent.buffer.store(
+            [...this.state],
+            currentStateValue,
+            oneHotActionVector,
+            currentActionProbability
+        );
         this.steps++;
-        if (this.game.getFrame() % 60 === 0) {
-            console.log(this.keyReverseMap[this.mostRecentKey.keyCode]);
-        }
     }
 
-    getAndStorePreviousReward() {
+    storePreviousReward() {
         // compute the reward from taking the previous action
         const prevReward = this.player.x - this.distanceCheckpoint;
         this.distanceCheckpoint = this.player.x;
@@ -973,9 +1002,8 @@ export default class GameScene extends Phaser.Scene {
     }
 
     updateExternalMovers() {
-        // update santas, ice mages, fireballs, meteors, snowmen
+        // update fireballs, meteors, enemies
         for (const group of [
-            this.helpers.children.entries,
             this.fireballs.children.entries,
             this.meteors.children.entries,
             this.snowmen.children.entries,
