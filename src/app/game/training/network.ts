@@ -2,7 +2,6 @@ import * as tf from "@tensorflow/tfjs";
 
 export default class Network {
     shape: number[];
-    optimizer: tf.AdamOptimizer;
     trainables: tf.Variable[] = [];
     weights: tf.Variable[] = [];
     biases: tf.Variable[] = [];
@@ -10,13 +9,8 @@ export default class Network {
     weightData: number[][] = [];
     isValueFunction: boolean;
 
-    constructor(
-        fullShape: number[],
-        layerWeights: number[][] = [],
-        learningRate: number = 1e-5
-    ) {
+    constructor(fullShape: number[], layerWeights: number[][] = []) {
         this.shape = fullShape;
-        this.optimizer = tf.train.adam(learningRate);
         this.weights = [];
         this.biases = [];
         this.activations = [];
@@ -51,7 +45,7 @@ export default class Network {
                 this.biases.push(biasLayer);
                 this.trainables.push(weightLayer, biasLayer);
                 if (i < fullShape.length - 2) {
-                    this.activations.push(tf.relu);
+                    this.activations.push(tf.elu);
                 }
             }
             // use a softmax for the last activation if this is not a value function
@@ -106,6 +100,5 @@ export default class Network {
         for (const trainable of this.trainables) {
             trainable.dispose();
         }
-        this.optimizer.dispose();
     }
 }
