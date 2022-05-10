@@ -5,25 +5,29 @@ import Buffer from "./buffer";
 export default class Agent {
     actor: Network;
     critic: Network;
+    optimizer: tf.AdamOptimizer;
+    trainables: tf.Variable[] = [];
     buffer: Buffer;
     numEpochs: number;
     epsilon: number;
     gamma: number;
     lambda: number;
+    entropyCoefficient: number;
 
     constructor(
         // first level of customWeights: actor or critic weights? (size = 2)
-        // second level: which layer of network? (size = 6)
+        // second level: which layer of network? (size = 10)
         // third level: flattened representation of layer weights
         customWeights: number[][][] = [],
         stateDim: number,
         actionDim: number,
-        numEpochs: number = 1,
-        numMiniBatches: number = 4,
-        learningRate: number = 1e-5,
+        numEpochs: number,
+        numMiniBatches: number,
+        learningRate: number,
         clipEpsilon: number = 0.2,
         gamma: number = 0.99,
-        lambda: number = 1.0
+        lambda: number = 1.0,
+        entropyCoefficient: number = 0.0
     ) {
         let actorWeights: number[][] = [];
         let criticWeights: number[][] = [];
@@ -32,23 +36,18 @@ export default class Agent {
             criticWeights = customWeights[1];
         }
         // actor needs 6 softmax outputs indicating probability per action
-        this.actor = new Network(
-            [stateDim, 256, 256, actionDim],
-            actorWeights,
-            learningRate
-        );
+        this.actor = new Network([stateDim, 256, 256, actionDim], actorWeights);
         // critic only needs one output indicating the value of the state
-        this.critic = new Network(
-            [stateDim, 256, 256, 1],
-            criticWeights,
-            learningRate
-        );
+        this.critic = new Network([stateDim, 256, 256, 1], criticWeights);
+        this.optimizer = tf.train.adam(learningRate);
+        this.trainables = [...this.actor.trainables, ...this.critic.trainables];
         // epsilon refers to PPO clipping parameter
         this.epsilon = clipEpsilon;
         // gamma is the usual discount factor
         this.gamma = gamma;
         // lambda is a necessary GAE parameter
         this.lambda = lambda;
+        this.entropyCoefficient = entropyCoefficient;
         this.numEpochs = numEpochs;
         this.buffer = new Buffer(numMiniBatches);
     }
@@ -117,7 +116,7 @@ export default class Agent {
         return returns;
     }
 
-    computeActorLoss(
+    computeActorObjective(
         states: tf.Tensor,
         actions: tf.Tensor,
         oldProbs: tf.Tensor,
@@ -134,16 +133,23 @@ export default class Agent {
                 tf.clipByValue(ratios, 1 - this.epsilon, 1 + this.epsilon),
                 advantages
             );
-            const clipObjective = tf.mean(tf.minimum(firstTerm, secondTerm));
-            // compute an entropy bonus to encourage exploration
-            const entropy = tf.mean(
-                tf.neg(tf.mul(probActions, tf.log(probActions)))
+            const clipObjective = tf
+                .mean(tf.minimum(firstTerm, secondTerm))
+                .asScalar();
+            return clipObjective;
+        });
+    }
+
+    getEntropy(probs: tf.Tensor): tf.Tensor {
+        return tf.tidy(() => {
+            // avoid numerical error of doing 0*log(0)
+            const floorProbs = tf.maximum(probs, 1e-8);
+            const individualEntropys = tf.neg(
+                tf.mul(floorProbs, tf.log(floorProbs))
             );
-            const totalObjective = tf.add(clipObjective, tf.mul(0.0, entropy));
-            // we want to minimize a "loss", so we'll just take the negative of the
-            // surrogate objective we're trying to maximize...
-            const loss = tf.neg(totalObjective);
-            return loss.asScalar();
+            const stateEntropys = tf.sum(individualEntropys, 1);
+            const averageEntropy = tf.mean(stateEntropys);
+            return averageEntropy;
         });
     }
 
@@ -152,14 +158,42 @@ export default class Agent {
             const values = tf.squeeze(this.critic.tensorForward(states));
             const squaredErrors = tf.squaredDifference(returns, values);
             const meanSquareError = squaredErrors.mean().asScalar();
-            values.dispose();
-            squaredErrors.dispose();
             return meanSquareError;
         });
     }
 
+    computeTotalLoss(
+        states: tf.Tensor,
+        actions: tf.Tensor,
+        oldProbs: tf.Tensor,
+        returns: tf.Tensor,
+        advantages: tf.Tensor
+    ): tf.Scalar {
+        const clipObjective = this.computeActorObjective(
+            states,
+            actions,
+            oldProbs,
+            advantages
+        );
+        const valueLoss = this.computeCriticLoss(states, returns);
+        // compute an entropy bonus to encourage exploration
+        const probLayers = this.actor.tensorForward(states);
+        const entropy = this.getEntropy(probLayers).asScalar();
+        const entropyBonus = tf.mul(this.entropyCoefficient, entropy);
+        const partialObjective = tf.add(clipObjective, tf.neg(valueLoss));
+        const totalObjective = tf.add(partialObjective, entropyBonus);
+        console.log(
+            `\nclipObjective: ${clipObjective.dataSync()}` +
+                `\nvalueLoss: ${valueLoss.dataSync()}` +
+                `\nentropy: ${entropy.dataSync()}\n`
+        );
+        // we want to minimize a "loss", so we'll just take the negative of the
+        // total objective we're trying to maximize...
+        const loss = tf.neg(totalObjective);
+        return loss.asScalar();
+    }
+
     train() {
-        this.playUpdateSound();
         console.log(
             "=============================\n" +
                 "=============================\n" +
@@ -191,21 +225,17 @@ export default class Agent {
                     const probTensor = probTensors[j];
                     const advantageTensor = advantageTensors[j];
                     const returnTensor = returnTensors[j];
-                    this.actor.optimizer.minimize(
+                    this.optimizer.minimize(
                         () =>
-                            this.computeActorLoss(
+                            this.computeTotalLoss(
                                 stateTensor,
                                 actionTensor,
                                 probTensor,
+                                returnTensor,
                                 advantageTensor
                             ),
                         true,
-                        this.actor.trainables
-                    );
-                    this.critic.optimizer.minimize(
-                        () => this.computeCriticLoss(stateTensor, returnTensor),
-                        true,
-                        this.critic.trainables
+                        this.trainables
                     );
                 }
             }
@@ -213,15 +243,9 @@ export default class Agent {
         });
     }
 
-    playUpdateSound() {
-        const audio = new Audio();
-        audio.src = "../assets/update-sound.mp3";
-        audio.load();
-        audio.play();
-    }
-
     dispose() {
         this.actor.dispose();
         this.critic.dispose();
+        this.optimizer.dispose();
     }
 }
