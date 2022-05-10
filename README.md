@@ -2,7 +2,7 @@
     <img src="https://dr3ngl797z54v.cloudfront.net/winter-run-logo.png" width="100%" alt="ppo-winter-run-logo">
 </p>
 
-Winter Run is a game written in TypeScript and Angular. You can play the game live [here](https://winter-run.com)! A deep reinforcement learning agent written in TensorFlow.js can learn to beat the game by training with [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347) (PPO) and [Generalized Advantage Estimation](https://arxiv.org/abs/1506.02438) (GAE). After training for roughly 50,000 episodes over the span of two weeks, the agent finally beat the game. After training for about 30,000 more episodes, the agent can beat the game roughly 75% of the time.
+Winter Run is a game written in TypeScript and Angular. You can play the game live [here](https://winter-run.com)! A deep reinforcement learning agent written in TensorFlow.js can learn to beat the game by training with [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347) (PPO). After training for roughly 5,000 episodes over the span of ten hours, the agent finally beat the game. After training for about 7,000 more episodes, the agent beat the game in 42/50 evaluation trials.
 
 Because the actor/critic network parameters are stored directly within the browser's local storage, anyone with internet access can pop open a browser and immediately begin training their own PPO agent to beat the game. To my knowledge, an in-browser PPO agent has never been created before.
 
@@ -17,9 +17,9 @@ For full training implementation details, the reader is directed to the followin
 /src/app/game/scenes/game-scene.ts (from the update() function and below)
 ```
 
-Both the actor and critic networks are multilayer perceptrons that have two hidden layers with 256 units each. The input to each of the networks is a 42-dimensional vector with hand-engineered features extracted from the current game-state. The actor network outputs a softmax probability distribution over the 6 possible actions the agent can take. Thus, the `shape` of the actor network is `[42, 256, 256, 6]`. Of course, since the critic network merely outputs the perceived value of the input state, the `shape` of the critic network is `[42, 256, 256, 1]`. This results in 155,399 total trainable parameters.
+Both the actor and critic networks are multilayer perceptrons that have two hidden layers with 256 units each. The input to each of the networks is an 81-dimensional vector with hand-engineered features extracted from the current game-state. The actor network outputs a softmax probability distribution over the 6 possible actions the agent can take. Thus, the `shape` of the actor network is `[81, 256, 256, 6]`. Of course, since the critic network merely outputs the perceived value of the input state, the `shape` of the critic network is `[81, 256, 256, 1]`. This results in 175,367 total trainable parameters.
 
-In previous instances of deep reinforcement learning applied to gameplay (such as in [the original DQN paper](https://arxiv.org/abs/1312.5602)), it has been common to make use of a "frame-skipping technique." Rather than the agent choosing an action on every single frame, the agent instead chooses an action every <b>k</b> frames and applies that same action to the next <b>(k - 1)</b> frames until the next choice must be made. This allows training to run more quickly, since feeding input vectors through the actor network often enough (say, 60 times per second) becomes quite a computationally expensive process. In the PPO implementation presented here, <b>k = 4</b>.
+In previous instances of deep reinforcement learning applied to gameplay (such as in [the original DQN paper](https://arxiv.org/abs/1312.5602)), it has been common to make use of a "frame-skipping technique." Rather than having the agent choose an action on every single frame, the agent instead chooses an action every <b>k</b> frames and applies that same action to the next <b>(k - 1)</b> frames until the next choice must be made. This allows training to run more quickly, since feeding input vectors through the actor network often enough (say, 60 times per second) becomes quite a computationally expensive process. In the PPO implementation presented here, <b>k = 4</b>.
 
 After each episode, a check is made to see if the agent has taken at least 8,192 steps (where a step consists of <b>k</b> frames). If so, all the data for each of the current {state, action, reward} steps are used to train the actor on the [PPO surrogate objective](https://arxiv.org/abs/1707.06347) with gradient ascent and to train the critic on the mean-squared value error with gradient descent. More specifically, a training step consists of 10 epochs, during each of which 32 shuffled mini-batches are formed from the current data. A single gradient step with a learning rate of 3E-4 is performed on the actor and critic for each mini-batch. The current {state, action, reward} step data are then discarded, now that the policy has changed.
 
@@ -45,9 +45,9 @@ The first command clones the repository into your desired location - you can als
 
 # References
 
-- [Proximal Policy Optimization Algorithms - Schulman et al.](https://arxiv.org/abs/1707.06347)
-- [High-Dimensional Continuous Control Using Generalized Advantage Estimation - Schulman et al.](https://arxiv.org/abs/1506.02438)
-- [Playing Atari with Deep Reinforcement Learning - Mnih et al.](https://arxiv.org/abs/1312.5602)
+-   [Proximal Policy Optimization Algorithms - Schulman et al.](https://arxiv.org/abs/1707.06347)
+-   [High-Dimensional Continuous Control Using Generalized Advantage Estimation - Schulman et al.](https://arxiv.org/abs/1506.02438)
+-   [Playing Atari with Deep Reinforcement Learning - Mnih et al.](https://arxiv.org/abs/1312.5602)
 
 # License
 
