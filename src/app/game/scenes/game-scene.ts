@@ -710,8 +710,8 @@ export default class GameScene extends Phaser.Scene {
         this.maxAverage = Math.max(this.maxAverage, runningAverageReward);
         console.log(
             `\nepisode ${this.episodeNum}\n` +
-                `reward: ${this.totalReward.toFixed(2)}\n` +
-                `max reward: ${this.maxReward.toFixed(2)}\n` +
+                `return: ${this.totalReward.toFixed(2)}\n` +
+                `max return: ${this.maxReward.toFixed(2)}\n` +
                 `100 period avg: ${runningAverageReward.toFixed(2)}\n` +
                 `max avg: ${this.maxAverage.toFixed(2)}`
         );
